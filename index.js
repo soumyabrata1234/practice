@@ -1,13 +1,55 @@
 import { GoogleGenAI } from "@google/genai";
+import readline from "readline";
 
-const ai = new GoogleGenAI({ apiKey: "AIzaSyDRfGWS0C2wQTEiuVhPq7nEa87Kki6yM1E" });
+const ai = new GoogleGenAI({
+  apiKey: "AIzaSyBtu3kJoIZ8KIjREBFONHtmu2Bng9erQNY",
+});
 
-async function main() {
+async function main(content) {
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: "hii, can u solve 5778 +887 without using any extra tool",
+    contents: content,
   });
-  console.log(response.text);
+  //console.log(response.text);
+  return response.text;
 }
 
-main();
+//main();
+
+
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+ while(true){
+  rl.question("You: ", async (name) => {
+
+    if (name === "bye") {
+      rl.close();
+      return;
+    }
+
+    const reply = await main(name);
+    console.log("AI:", reply);
+
+    //ask();
+  });
+ // break;
+ }
+// function ask() {
+//   rl.question("You: ", async (name) => {
+
+//     if (name === "bye") {
+//       rl.close();
+//       return;
+//     }
+
+//     const reply = await main(name);
+//     console.log("AI:", reply);
+
+//     ask();
+//   });
+// }
+
