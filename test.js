@@ -3,7 +3,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({
-  apiKey: "AIzaSyBtu3kJoIZ8KIjREBFONHtmu2Bng9erQNY",
+  apiKey: "AIzaSyDUGv7dhQmN4XPUGfCQf8T-8NnOM8eHNNY",
 });
 
 async function main(content) {
@@ -16,11 +16,14 @@ async function main(content) {
 }
 
 const rl = readline.createInterface({ input, output });
+let promt="";
 
 while (true) {
-  const promt = await rl.question("You: ");
-  if(promt === "end") break;
+  const promtt = await rl.question("You: ");
+  if(promtt === "end") break;
+  promt += promtt;
   const reply = await main(promt);
+  
   console.log(`AI: ${reply}`);
 }
 

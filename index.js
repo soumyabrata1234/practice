@@ -1,55 +1,84 @@
-import { GoogleGenAI } from "@google/genai";
-import readline from "readline";
+import readline from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
+import { z } from "zod";
+import { tool } from "@langchain/core/tools";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
+import { ToolNode, toolsCondition } from "@langchain/langgraph/prebuilt";
 
-const ai = new GoogleGenAI({
-  apiKey: "AIzaSyBtu3kJoIZ8KIjREBFONHtmu2Bng9erQNY",
-});
+const apiKey = "AIzaSyDUGv7dhQmN4XPUGfCQf8T-8NnOM8eHNNY";
 
-async function main(content) {
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: content,
-  });
-  //console.log(response.text);
-  return response.text;
+if (!apiKey) {
+  throw new Error("Missing GEMINI_API_KEY environment variable.");
 }
 
-//main();
-
-
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
+const model = new ChatGoogleGenerativeAI({
+  apiKey,
+  model: "gemini-2.5-flash",
+  temperature: 0,
 });
 
- while(true){
-  rl.question("You: ", async (name) => {
+const add = tool(
+  async ({ a, b }) => a + b,
+  {
+    name: "add",
+    description: "Add two numbers.",
+    schema: z.object({
+      a: z.number().describe("First number"),
+      b: z.number().describe("Second number"),
+    }),
+  },
+);
 
-    if (name === "bye") {
-      rl.close();
-      return;
-    }
+const tools = [add];
+const modelWithTools = model.bindTools(tools);
 
-    const reply = await main(name);
-    console.log("AI:", reply);
+async function callModel(state) {
+  const response = await modelWithTools.invoke([
+    new SystemMessage(
+      "You are a helpful assistant. Use the add tool for addition questions."
+    ),
+    ...state.messages,
+  ]);
 
-    //ask();
+  return { messages: [response] };
+}
+
+const graph = new StateGraph(MessagesAnnotation)
+  .addNode("agent", callModel)
+  .addNode("tools", new ToolNode(tools))
+  .addEdge(START, "agent")
+  .addConditionalEdges("agent", toolsCondition)
+  .addEdge("tools", "agent")
+  .compile();
+
+async function runAgent(prompt) {
+  const result = await graph.invoke({
+    messages: [new HumanMessage(prompt)],
   });
- // break;
- }
-// function ask() {
-//   rl.question("You: ", async (name) => {
 
-//     if (name === "bye") {
-//       rl.close();
-//       return;
-//     }
+  return result.messages.at(-1);
+}
 
-//     const reply = await main(name);
-//     console.log("AI:", reply);
+async function main() {
+  const promptFromArgs = process.argv.slice(2).join(" ").trim();
 
-//     ask();
-//   });
-// }
+  if (promptFromArgs) {
+    const finalMessage = await runAgent(promptFromArgs);
+    console.log(finalMessage?.content);
+    return;
+  }
 
+  const rl = readline.createInterface({ input, output });
+
+  try {
+    const prompt = await rl.question("Ask something: ");
+    const finalMessage = await runAgent(prompt);
+    console.log(finalMessage?.content);
+  } finally {
+    rl.close();
+  }
+}
+
+await main();
