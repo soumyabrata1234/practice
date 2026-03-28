@@ -12,7 +12,7 @@ import { tool } from "@langchain/core/tools";
 import * as z from "zod";
 import console from "node:console";
 
-function print(x) {
+function f(x) {
   console.log(x);
 }
 
@@ -20,8 +20,6 @@ const systemMsg = new SystemMessage(
   `You are a helpful ICDS Supervisior.
 
 Your goal is to help students understand programming and data structures clearly.
-My name is Soumyabrata sinha, It undergraduate student from jalpaiguri Government Engineering College.
-
 
 Instructions:
 - Give simple explanations before technical definitions.
@@ -34,20 +32,20 @@ Instructions:
 - If the student asks for deeper explanation, then provide more details. `,
 );
 
-// const addNumbers = tool(
-//   ({ a, b }) => {
-//     // return as string so the model sees readable output
-//     return String(a + b);
-//   },
-//   {
-//     name: "add_numbers", // prefer snake_case
-//     description: "Add two numbers and return the sum.",
-//     schema: z.object({
-//       a: z.number().describe("first addend"),
-//       b: z.number().describe("second addend"),
-//     }),
-//   },
-// );
+const addNumbers = tool(
+  ({ a, b }) => {
+    // return as string so the model sees readable output
+    return (a + b);
+  },
+  {
+    name: "add_numbers", // prefer snake_case
+    description: "Add two numbers and return the sum.",
+    schema: z.object({
+      a: z.number().describe("first addend"),
+      b: z.number().describe("second addend"),
+    }),
+  },
+);
 
 const getWeather = tool(
   ({ city }) => {
@@ -95,12 +93,12 @@ const getJoke = tool(
 );
 
 const model = new ChatGoogleGenerativeAI({
-  model: "gemini-2.5-flash-lite",
+  model: "gemini-2.5-flash",
   apiKey: process.env.GEMINI_API_KEY,
-}).bindTools([getWeather, getJoke]);
+}).bindTools([getWeather, getJoke, addNumbers]);
 
 const rl = readline.createInterface({ input, output });
-let promt = "";
+
 let msg = [systemMsg];
 
 while (true) {
@@ -111,6 +109,8 @@ while (true) {
   msg.push(new HumanMessage(userInput));
 
   const response = await model.invoke(msg);
+  
+ //console.log(response);
 
   if (response.tool_calls?.length) {
     const toolCall = response.tool_calls[0];
@@ -124,6 +124,8 @@ while (true) {
     if (toolCall.name === "get_Joke") {
       toolResult = await getJoke.invoke(toolCall.args);
     }
+
+    if(toolCall.name === "add_numbers") toolResult = await addNumbers.invoke(toolCall.args);
 
 
 
@@ -142,7 +144,7 @@ while (true) {
     // 👇 NOW call model with FULL CONTEXT
     const finalResponse = await model.invoke(msg);
 
-    console.log("🤖:", finalResponse.content);
+    console.log("O_O: ", finalResponse.content);
 
     // 👇 store final AI reply
     msg.push(new AIMessage(finalResponse));
@@ -155,7 +157,5 @@ while (true) {
 
   console.log(" ");
 }
-
-
 
 rl.close();

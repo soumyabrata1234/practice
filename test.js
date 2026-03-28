@@ -10,7 +10,7 @@ const ai = new GoogleGenAI({
 
 async function main(content) {
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-2.5-flash",
     contents: content,
   });
   //console.log(response.text);
