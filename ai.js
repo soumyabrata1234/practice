@@ -1,12 +1,27 @@
+import "dotenv/config";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { SystemMessage, HumanMessage } from "@langchain/core/messages";
+import {
+  SystemMessage,
+  HumanMessage,
+  ToolMessage,
+  AIMessage
+} from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import * as z from "zod";
+import console from "node:console";
+
+function print(x) {
+  console.log(x);
+}
 
 const systemMsg = new SystemMessage(
   `You are a helpful ICDS Supervisior.
 
 Your goal is to help students understand programming and data structures clearly.
+My name is Soumyabrata sinha, It undergraduate student from jalpaiguri Government Engineering College.
+
 
 Instructions:
 - Give simple explanations before technical definitions.
@@ -19,24 +34,128 @@ Instructions:
 - If the student asks for deeper explanation, then provide more details. `,
 );
 
+// const addNumbers = tool(
+//   ({ a, b }) => {
+//     // return as string so the model sees readable output
+//     return String(a + b);
+//   },
+//   {
+//     name: "add_numbers", // prefer snake_case
+//     description: "Add two numbers and return the sum.",
+//     schema: z.object({
+//       a: z.number().describe("first addend"),
+//       b: z.number().describe("second addend"),
+//     }),
+//   },
+// );
+
+const getWeather = tool(
+  ({ city }) => {
+    return `It's sunny in ${city}.`;
+  },
+  {
+    name: "get_weather",
+    description: "Get the weather for a city",
+    schema: z.object({
+      city: z.string().describe("City name"),
+    }),
+  },
+);
+
+const validJokeCategories = ["Any", "Programming", "Misc", "Dark", "Pun", "Spooky", "Christmas"];
+
+const getJoke = tool(
+  async ({ category }) => {
+    // Default to "Any" if the category is not valid
+    const safeCategory = validJokeCategories.includes(category) ? category : "Any";
+
+    const res = await fetch(
+      `https://v2.jokeapi.dev/joke/${safeCategory}`
+    );
+
+    const data = await res.json();
+
+    if (data.type === "single") {
+      return data.joke;
+    }
+
+    if (data.type === "twopart") {
+      return `${data.setup}\n${data.delivery}`;
+    }
+
+    return "Couldn't fetch a joke.";
+  },
+  {
+    name: "get_Joke",
+    description: "Use this tool when the user asks for a joke. Valid categories are: Any, Programming, Misc, Dark, Pun, Spooky, Christmas. Use 'Any' if unsure.",
+    schema: z.object({
+      category: z.string().describe("Joke category. Must be one of: Any, Programming, Misc, Dark, Pun, Spooky, Christmas"),
+    }),
+  }
+);
+
 const model = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-flash-lite",
-  apiKey: "AIzaSyDXrdcw9oWH3cllYXRwOwyYjska4mdCJAM",
-});
+  apiKey: process.env.GEMINI_API_KEY,
+}).bindTools([getWeather, getJoke]);
 
 const rl = readline.createInterface({ input, output });
 let promt = "";
-let msg=[systemMsg];
+let msg = [systemMsg];
 
 while (true) {
+  const userInput = await rl.question("👱🏼: ");
 
-  const promtt = await rl.question("👱🏼: ");
-  if (promtt === "end") break;
-  const messages = [systemMsg, promtt];
-  msg.push(promtt);
-  const stream = await model.invoke(msg);
-  console.log("🤖: " + stream.text);
+  if (userInput === "end") break;
+
+  msg.push(new HumanMessage(userInput));
+
+  const response = await model.invoke(msg);
+
+  if (response.tool_calls?.length) {
+    const toolCall = response.tool_calls[0];
+
+    let toolResult;
+
+    if (toolCall.name === "get_weather") {
+      toolResult = await getWeather.invoke(toolCall.args);
+    }
+
+    if (toolCall.name === "get_Joke") {
+      toolResult = await getJoke.invoke(toolCall.args);
+    }
+
+
+
+    // 👇 push AI response (tool call)
+    msg.push(new AIMessage (response.content));
+
+    // 👇 push tool result
+    const toolMessage = new ToolMessage({
+      content: toolResult,
+      tool_call_id: toolCall.id,
+       name: toolCall.name
+    });
+
+    msg.push(toolMessage);
+
+    // 👇 NOW call model with FULL CONTEXT
+    const finalResponse = await model.invoke(msg);
+
+    console.log("🤖:", finalResponse.content);
+
+    // 👇 store final AI reply
+    msg.push(new AIMessage(finalResponse));
+
+  } else {
+    console.log("🤖:", response.content);
+
+    msg.push(new AIMessage(response.content)); // simpler, no need to wrap
+  }
+
   console.log(" ");
 }
-//console.log(typeof (systemMsg));
+
+
+
 rl.close();

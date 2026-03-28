@@ -1,84 +1,41 @@
-import readline from "node:readline/promises";
-import { stdin as input, stdout as output } from "node:process";
-import { z } from "zod";
-import { tool } from "@langchain/core/tools";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
-import { ToolNode, toolsCondition } from "@langchain/langgraph/prebuilt";
+import { initChatModel, createAgent, providerStrategy } from "langchain";
+import "dotenv/config";
 
-const apiKey = "AIzaSyDUGv7dhQmN4XPUGfCQf8T-8NnOM8eHNNY";
 
-if (!apiKey) {
-  throw new Error("Missing GEMINI_API_KEY environment variable.");
+
+const contactInfoSchema = {
+  "type": "object",
+  "description": "Contact information for a person.",
+  "properties": {
+    "name": { "type": "string", "description": "The name of the person" },
+    "email": { "type": "string", "description": "The email address of the person" },
+    "phone": { "type": "string", "description": "The phone number of the person" }
+  },
+  "required": ["name", "email", "phone"]
 }
 
 const model = new ChatGoogleGenerativeAI({
-  apiKey,
-  model: "gemini-2.5-flash",
-  temperature: 0,
+  model: "gemini-3.5-flash-lite",
+  apiKey: process.env.GEMINI_API_KEY,
+  temperature: 1.8,
+   responseFormat: providerStrategy(contactInfoSchema)
 });
 
-const add = tool(
-  async ({ a, b }) => a + b,
-  {
-    name: "add",
-    description: "Add two numbers.",
-    schema: z.object({
-      a: z.number().describe("First number"),
-      b: z.number().describe("Second number"),
-    }),
-  },
-);
+const agent = createAgent({
+    model: model,
+    tools: [],
+    responseFormat: providerStrategy(contactInfoSchema)
+});
 
-const tools = [add];
-const modelWithTools = model.bindTools(tools);
 
-async function callModel(state) {
-  const response = await modelWithTools.invoke([
-    new SystemMessage(
-      "You are a helpful assistant. Use the add tool for addition questions."
-    ),
-    ...state.messages,
-  ]);
 
-  return { messages: [response] };
-}
+const result = await agent.invoke({
+    messages: [{"role": "user", "content": "Extract contact info from: John Doe, john@example.com, (555) 123-4567"}]
+});
 
-const graph = new StateGraph(MessagesAnnotation)
-  .addNode("agent", callModel)
-  .addNode("tools", new ToolNode(tools))
-  .addEdge(START, "agent")
-  .addConditionalEdges("agent", toolsCondition)
-  .addEdge("tools", "agent")
-  .compile();
+console.log("AI:", result);
+//const response = await model.invoke("Hii, what is RAM in a processor, in 20 words");
 
-async function runAgent(prompt) {
-  const result = await graph.invoke({
-    messages: [new HumanMessage(prompt)],
-  });
+//console.log(response.content);
 
-  return result.messages.at(-1);
-}
-
-async function main() {
-  const promptFromArgs = process.argv.slice(2).join(" ").trim();
-
-  if (promptFromArgs) {
-    const finalMessage = await runAgent(promptFromArgs);
-    console.log(finalMessage?.content);
-    return;
-  }
-
-  const rl = readline.createInterface({ input, output });
-
-  try {
-    const prompt = await rl.question("Ask something: ");
-    const finalMessage = await runAgent(prompt);
-    console.log(finalMessage?.content);
-  } finally {
-    rl.close();
-  }
-}
-
-await main();

@@ -1,9 +1,11 @@
 import * as readline from "node:readline/promises";
+
 import { stdin as input, stdout as output } from "node:process";
 import { GoogleGenAI } from "@google/genai";
+import "dotenv/config";
 
 const ai = new GoogleGenAI({
-  apiKey: "AIzaSyDUGv7dhQmN4XPUGfCQf8T-8NnOM8eHNNY",
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
 async function main(content) {
@@ -21,8 +23,8 @@ let promt="";
 while (true) {
   const promtt = await rl.question("You: ");
   if(promtt === "end") break;
-  promt += promtt;
-  const reply = await main(promt);
+  //promt += promtt;
+  const reply = await main(promtt);
   
   console.log(`AI: ${reply}`);
 }
