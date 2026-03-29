@@ -9,10 +9,12 @@ const loader = new TextLoader("./xx.txt");
 const docs = await loader.load();
 
 const splitter = new RecursiveCharacterTextSplitter({
-  chunkSize: 100,
-  chunkOverlap: 0,
+  chunkSize: 250,
+  chunkOverlap: 40,
 });
 const texts = await splitter.splitDocuments(docs);
+
+//console.log(texts);
 
 
 if (!process.env.GEMINI_API_KEY) {
@@ -33,10 +35,12 @@ const chunks = texts.map((d) => d.pageContent);
 console.log(`Found ${chunks.length} chunks, embedding now...`);
 console.log(" ");
 
+
 const vectors = await embeddings.embedDocuments(chunks);
 
-console.log("Embedding complete.");
-console.log("First vector length:", vectors[0]?.length);
-console.log("First vector (first 10 dims):", vectors[0]?.slice(0, 10));
+
+//console.log("Embedding complete.");
+//console.log("First vector length:", vectors[0]?.length);
+//console.log("First vector (first 10 dims):", vectors[0]?.slice(0, 10));
 
 //console.log(chunks);
