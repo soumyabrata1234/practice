@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "1": "node something.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
     "embed:example": "node embeddings_example.js"
   },
   "keywords": [],
@@ -19,6 +19,7 @@
     "@langchain/google-genai": "^2.1.26",
     "@langchain/langgraph": "^1.2.5",
     "@langchain/openai": "^1.3.0",
+    "@langchain/pinecone": "^1.0.1",
     "dotenv": "^17.3.1",
     "langchain": "^1.2.36",
     "zod": "^4.3.6"
