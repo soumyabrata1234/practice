@@ -17,7 +17,7 @@ function f(x) {
 }
 
 const systemMsg = new SystemMessage(
-  `You are a helpful ICDS Supervisior.
+  `You are a helpful Coding Assistent.
 
 Your goal is to help students understand programming and data structures clearly.
 
@@ -144,7 +144,7 @@ while (true) {
     // 👇 NOW call model with FULL CONTEXT
     const finalResponse = await model.invoke(msg);
 
-    console.log("O_O: ", finalResponse.content);
+    console.log("⚙️: ", finalResponse.content);
 
     // 👇 store final AI reply
     msg.push(new AIMessage(finalResponse));
